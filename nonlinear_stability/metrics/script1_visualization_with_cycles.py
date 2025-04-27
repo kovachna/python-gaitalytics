@@ -97,72 +97,72 @@ def plotting(data: xr.DataArray,
 
 
 
-def compute_floquet(data: xr.DataArray,
-                    context: str = "Right",
-                    channel: str = "COM",
-                    axes: list = ["x","y","z"],
-                    normalization_points: int = 101,
-                    rcond: float = 1e-6) -> float:
-    """
-    Compute the max Floquet multiplier (|lambda_max|) for one-step Poincaré map
-    at start-of-stride (t=0) using the specified context and channel.
+# def compute_floquet(data: xr.DataArray,
+#                     context: str = "Right",
+#                     channel: str = "COM",
+#                     axes: list = ["x","y","z"],
+#                     normalization_points: int = 101,
+#                     rcond: float = 1e-6) -> float:
+#     """
+#     Compute the max Floquet multiplier (|lambda_max|) for one-step Poincaré map
+#     at start-of-stride (t=0) using the specified context and channel.
 
-    Time-normalizes each cycle to `normalization_points` samples before building
-    state vectors [position; velocity]. Uses robust pseudoinverse with fallback.
+#     Time-normalizes each cycle to `normalization_points` samples before building
+#     state vectors [position; velocity]. Uses robust pseudoinverse with fallback.
 
-    Returns:
-        max_abs_lambda: float
-    """
-    # 1) select and reorder data: dims (cycle, time, axis)
-    seg = data.sel(context=context, channel=channel, axis=axes)
-    seg = seg.transpose('cycle', 'time', 'axis')
+#     Returns:
+#         max_abs_lambda: float
+#     """
+#     # 1) select and reorder data: dims (cycle, time, axis)
+#     seg = data.sel(context=context, channel=channel, axis=axes)
+#     seg = seg.transpose('cycle', 'time', 'axis')
 
-    # extract array
-    com = seg.values               # shape (n_cycles, n_time, n_axes)
-    n_cycles, n_time, n_axes = com.shape
+#     # extract array
+#     com = seg.values               # shape (n_cycles, n_time, n_axes)
+#     n_cycles, n_time, n_axes = com.shape
 
-    M = normalization_points
-    norm_t = np.linspace(0, 1, M)
-    com_norm = np.zeros((n_cycles, M, n_axes))
+#     M = normalization_points
+#     norm_t = np.linspace(0, 1, M)
+#     com_norm = np.zeros((n_cycles, M, n_axes))
 
-    # 2) time-normalize each cycle using its own time vector
-    for i in range(n_cycles):
-        # get per-cycle time values
-        da_cyc = seg.isel(cycle=i)
-        t_cycle = da_cyc.coords['time'].values
-        # normalize to [0,1]
-        t_norm = (t_cycle - t_cycle[0]) / (t_cycle[-1] - t_cycle[0])
-        for j in range(n_axes):
-            com_norm[i, :, j] = np.interp(norm_t, t_norm, com[i, :, j])
+#     # 2) time-normalize each cycle using its own time vector
+#     for i in range(n_cycles):
+#         # get per-cycle time values
+#         da_cyc = seg.isel(cycle=i)
+#         t_cycle = da_cyc.coords['time'].values
+#         # normalize to [0,1]
+#         t_norm = (t_cycle - t_cycle[0]) / (t_cycle[-1] - t_cycle[0])
+#         for j in range(n_axes):
+#             com_norm[i, :, j] = np.interp(norm_t, t_norm, com[i, :, j])
 
-    # 3) normalized dt
-    dt_norm = 1.0 / (M - 1)
+#     # 3) normalized dt
+#     dt_norm = 1.0 / (M - 1)
 
-    # 4) build state vectors at t=0: positions and velocities
-    S_pos = com_norm[:, 0, :]
-    S_vel = (com_norm[:, 1, :] - com_norm[:, 0, :]) / dt_norm
-    S = np.hstack([S_pos, S_vel])  # shape (n_cycles, 2*n_axes)
+#     # 4) build state vectors at t=0: positions and velocities
+#     S_pos = com_norm[:, 0, :]
+#     S_vel = (com_norm[:, 1, :] - com_norm[:, 0, :]) / dt_norm
+#     S = np.hstack([S_pos, S_vel])  # shape (n_cycles, 2*n_axes)
 
-    # 5) form X and Y matrices
-    X = S[:-1, :]
-    Y = S[1:, :]
+#     # 5) form X and Y matrices
+#     X = S[:-1, :]
+#     Y = S[1:, :]
 
-    # 6) center
-    S_mean = S.mean(axis=0)
-    dX = (X - S_mean).T
-    dY = (Y - S_mean).T
+#     # 6) center
+#     S_mean = S.mean(axis=0)
+#     dX = (X - S_mean).T
+#     dY = (Y - S_mean).T
 
-    # 7) Jacobian with robust pseudoinverse
-    try:
-        pinv_dX = np.linalg.pinv(dX, rcond=rcond)
-        J = dY @ pinv_dX
-    except np.linalg.LinAlgError:
-        lam = rcond * np.trace(dX @ dX.T)
-        J = dY @ dX.T @ np.linalg.inv(dX @ dX.T + lam * np.eye(dX.shape[0]))
+#     # 7) Jacobian with robust pseudoinverse
+#     try:
+#         pinv_dX = np.linalg.pinv(dX, rcond=rcond)
+#         J = dY @ pinv_dX
+#     except np.linalg.LinAlgError:
+#         lam = rcond * np.trace(dX @ dX.T)
+#         J = dY @ dX.T @ np.linalg.inv(dX @ dX.T + lam * np.eye(dX.shape[0]))
 
-    # 8) eigenvalues
-    lambdas = np.linalg.eigvals(J)
-    return float(np.max(np.abs(lambdas)))
+#     # 8) eigenvalues
+#     lambdas = np.linalg.eigvals(J)
+#     return float(np.max(np.abs(lambdas)))
 
 def main():
     base_dir = Path("data/01")
@@ -175,13 +175,13 @@ def main():
     for name, data in datasets.items():
         print(f"Loading {name}: dims={data.dims}, coords={list(data.coords)}")
         plotting(data, name)
-        max_fm = compute_floquet(data,
-                                 context="Right",
-                                 channel="COM",
-                                 axes=["x","y","z"],
-                                 normalization_points=101,
-                                 rcond=1e-6)
-        print(f"{name}: Max |Floquet λ| (Right-strikes, COM) = {max_fm:.4f}")
+        # max_fm = compute_floquet(data,
+        #                          context="Right",
+        #                          channel="COM",
+        #                          axes=["x","y","z"],
+        #                          normalization_points=101,
+        #                          rcond=1e-6)
+        # print(f"{name}: Max |Floquet λ| (Right-strikes, COM) = {max_fm:.4f}")
 
 
 
