@@ -64,6 +64,24 @@ def segment_file(in_file: Path, out_seg_file:Path, config_path:Path):
     api.export_trial(segments,out_seg_file)
     print(f"File with cycles saved to {out_seg_file}")
 
+class CoM_Calculation:
+    def __init__(self, in_file: Path, out_file:Path, config_path:Path):
+        self.in_file = in_file
+        self.out_file = out_file
+        self.config_path = config_path
+
+    def process(self):
+        """
+        Process the file and save the results.
+        """
+        process_file(self.in_file, self.out_file, self.config_path)
+
+    def segment(self):
+        """
+        Segment the file and save the results.
+        """
+        segment_file(self.in_file, self.out_file, self.config_path)
+
 
 def main():
 
